@@ -11,3 +11,88 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ------------------------------------------------------
+// 1. USUÁRIOS
+// ------------------------------------------------------
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password      String?   // Opcional, pensando no NextAuth depois
+  role          Role      @default(USER)
+  
+  // Relacionamentos Muitos-para-Muitos
+  authoredTexts Text[]    @relation("TextAuthors")
+  collaborated  Edition[] @relation("EditionCollaborators")
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ------------------------------------------------------
+// 2. EDIÇÕES (A Revista em si)
+// ------------------------------------------------------
+model Edition {
+  id            String    @id @default(uuid())
+  title         String    // Ex: "Edição 01 - Manifesto"
+  slug          String    @unique // Ex: "edicao-01-manifesto" (Usado na URL)
+  description   String?   @db.Text
+  coverImageUrl String?   // Capa da revista
+  pdfUrl        String?   // Link para baixar o PDF da edição completa
+  isPublished   Boolean   @default(false)
+  publishedAt   DateTime?
+  
+  // Relacionamentos
+  texts         Text[]    // Uma edição tem vários textos (1:N)
+  collaborators User[]    @relation("EditionCollaborators") // Vários colaboradores (M:N)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ------------------------------------------------------
+// 3. TEXTOS (Os Artigos/Matérias)
+// ------------------------------------------------------
+model Text {
+  id            String    @id @default(uuid())
+  title         String
+  slug          String    @unique // Ex: "a-cena-cultural-potiguar"
+  excerpt       String?   @db.Text // Um breve resumo para exibir na listagem
+  content       String    @db.Text // O conteúdo completo (HTML ou Markdown)
+  coverImageUrl String?   // Imagem de destaque da matéria
+  
+  // Relacionamentos
+  editionId     String
+  edition       Edition   @relation(fields: [editionId], references: [id])
+  
+  authors       User[]    @relation("TextAuthors") // Um texto pode ter vários autores (M:N)
+  tags          Tag[]     // Um texto tem várias tags (M:N)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ------------------------------------------------------
+// 4. TAGS (Categorização cruzada)
+// ------------------------------------------------------
+model Tag {
+  id            String    @id @default(uuid())
+  name          String    @unique // Ex: "Artes Visuais", "Música"
+  slug          String    @unique // Ex: "artes-visuais"
+  
+  // Relacionamentos
+  texts         Text[]    // Uma tag pertence a vários textos (M:N)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------
+enum Role {
+  USER      // Leitor comum / Assinante
+  AUTHOR    // Pode escrever textos
+  ADMIN     // Pode criar edições, publicar, gerenciar usuários
+}
